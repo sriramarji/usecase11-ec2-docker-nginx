@@ -20,5 +20,5 @@ variable "my-keyname" {
 variable "my-inst-name" {
   description = "EC2 instance name"
   type        = string
-  default     = "custom-usecase-ec2"
+  default     = "demo-ec2"
 }
