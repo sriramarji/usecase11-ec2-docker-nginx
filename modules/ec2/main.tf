@@ -8,7 +8,7 @@ resource "aws_instance" "webserver" {
     #!/bin/bash
     sudo apt update -y
     sudo apt install nginx -y
-    echo "Hi.I am from Nginx" | sudo tee /var/www/html/index.html
+    echo "Hi,I am from Nginx" | sudo tee /var/www/html/index.html
     sudo systemctl enable nginx
     sudo systemctl start nginx
   EOF
