@@ -1,0 +1,94 @@
+name: Custom use case
+
+on:
+  push:
+    branches:
+      - master
+
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Choose action: apply or destroy'
+        required: true
+        type: choice
+        options:
+          - apply
+          - destroy
+
+jobs:
+  lint-and-security:
+    name: Lint and Security Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install TFLint
+        run: |
+          wget https://github.com/terraform-linters/tflint/releases/download/v0.50.2/tflint_linux_amd64.zip
+          unzip tflint_linux_amd64.zip
+          sudo mv tflint /usr/local/bin/
+          tflint --version
+          
+      - name: Run TFLint
+        run: tflint --init && tflint -f compact
+        working-directory: ./
+
+      - name: Install Checkov
+        run: |
+          pip3 install --upgrade pip
+          pip3 install checkov
+          
+      - name: Run Checkov
+        run: checkov -d . --framework terraform --soft-fail
+        working-directory: ./ 
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::211125784755:role/uc1-alb-oidc
+          aws-region: us-east-1
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        # with:
+        #   terraform_version: 1.6.6
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+       
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -recursive
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+
+      - name: Terraform test
+        id: test
+        run: terraform test
+        continue-on-error: true 
+      
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        continue-on-error: true
+
+      - name: Terraform Plan
+        run: terraform plan
+
+      # - name: Terraform Apply
+      #   if: github.event.inputs.mode == 'apply'
+      #   run: terraform apply -auto-approve
+      
+      - name: Terraform Destroy
+        if: github.event.inputs.mode == 'destroy'
+        run: terraform destroy -auto-approve
